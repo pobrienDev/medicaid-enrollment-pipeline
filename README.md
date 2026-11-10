@@ -25,7 +25,7 @@ flowchart LR
 
 ```bash
 docker compose up -d                 # local Postgres 16; applies sql/schema.sql on first start
-cp .env.example .env                 # then set SOURCE_URL
+cp .env.example .env                 # defaults point at local Postgres and the CMS API
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 python -m pipeline.run
@@ -65,7 +65,12 @@ FROM pipeline_runs ORDER BY run_id DESC LIMIT 5;
 
 ## Data source
 
-<!-- TODO: dataset name, link to the dataset page, and license note -->
+[State Medicaid and CHIP Applications, Eligibility Determinations, and Enrollment Data](https://data.medicaid.gov/dataset/6165f45b-ca93-5bb5-9d06-db29c692a360), published by the Centers for Medicare & Medicaid Services on data.medicaid.gov.
+
+- **Coverage:** 50 states plus DC, monthly from September 2013, updated monthly with roughly a three-month lag.
+- **Access:** public JSON API with `limit`/`offset` paging, no API key. The same data is available as a CSV download, which the pipeline uses as a fallback.
+- **License:** U.S. government work ([usa.gov/government-works](https://www.usa.gov/government-works)).
+- **Preliminary vs. updated:** most state-months appear twice, once as a preliminary report and once as an updated final report, often with different totals. The pipeline keeps one row per state and month.
 
 ## Roadmap
 
