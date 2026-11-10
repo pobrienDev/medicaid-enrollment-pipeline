@@ -1,0 +1,31 @@
+name: Scheduled pipeline run
+
+on:
+  schedule:
+    - cron: "17 11 * * 1"   # Mondays 11:17 UTC (GitHub cron is always UTC)
+  workflow_dispatch:         # "Run workflow" button for demos
+
+concurrency:
+  group: pipeline
+  cancel-in-progress: false  # never run two loads at once
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Apply schema
+        run: psql "$PSQL_URL" -f sql/schema.sql
+        env:
+          PSQL_URL: ${{ secrets.PSQL_URL }}           # plain postgresql:// form for psql
+      - name: Run pipeline
+        run: python -m pipeline.run
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}   # postgresql+psycopg:// form
+          SOURCE_URL: ${{ vars.SOURCE_URL }}
