@@ -2,11 +2,7 @@
 
 A small, tested data pipeline that pulls public Medicaid & CHIP enrollment data, cleans and validates it with pandas, and upserts it into PostgreSQL on a schedule with GitHub Actions.
 
-<!-- TODO: add the CI badge once the repo is on GitHub:
-![CI](https://github.com/OWNER/REPO/actions/workflows/ci.yml/badge.svg)
--->
-
-> Status: scaffold. The modules in `pipeline/` and the tests are stubs that describe what each file will contain.
+[![CI](https://github.com/pobrienDev/medicaid-enrollment-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/pobrienDev/medicaid-enrollment-pipeline/actions/workflows/ci.yml)
 
 ## Architecture
 
@@ -39,7 +35,9 @@ ruff check .
 pytest --cov=pipeline --cov-report=term-missing
 ```
 
-Unit tests need nothing external. The integration tests in `tests/test_load.py` need a running Postgres and `DATABASE_URL` set; without it they are skipped.
+Unit tests (`test_extract.py`, `test_transform.py`, `test_validate.py`) need nothing external: HTTP is mocked and the data is a fixture of 20 real source rows.
+
+The integration tests (`test_load.py`, `test_run.py`) run against a real Postgres. They empty the tables they use, so they connect with `TEST_DATABASE_URL` (falling back to `DATABASE_URL`, which is what CI sets) and refuse to run against any database whose name does not end in `_test`. Docker Compose creates `enrollment_test` alongside the main database. Without a test database they are skipped.
 
 ## Design decisions
 
@@ -47,6 +45,7 @@ Unit tests need nothing external. The integration tests in `tests/test_load.py` 
 - **Validation gate.** Bad data fails the run before anything touches the main table. Postgres constraints are a second line of defense.
 - **Single transaction.** The staging write and the upsert share one transaction, so a crash never leaves half a load.
 - **Run audit table.** Every run writes a row to `pipeline_runs` (start, end, status, row counts, error).
+- **Raw snapshot.** Each extract is saved untouched under `data/` (gitignored) before it is transformed.
 
 ## Sample queries
 
@@ -70,7 +69,7 @@ FROM pipeline_runs ORDER BY run_id DESC LIMIT 5;
 - **Coverage:** 50 states plus DC, monthly from September 2013, updated monthly with roughly a three-month lag.
 - **Access:** public JSON API with `limit`/`offset` paging, no API key. The same data is available as a CSV download, which the pipeline uses as a fallback.
 - **License:** U.S. government work ([usa.gov/government-works](https://www.usa.gov/government-works)).
-- **Preliminary vs. updated:** most state-months appear twice, once as a preliminary report and once as an updated final report, often with different totals. The pipeline keeps one row per state and month.
+- **Preliminary vs. updated:** most state-months appear twice, once as a preliminary report and once as an updated final report, often with different totals. The pipeline keeps one row per state and month, preferring the updated report, so a full run extracts about 11,200 rows and loads about 5,700.
 
 ## Roadmap
 
